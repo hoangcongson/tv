@@ -1469,6 +1469,7 @@
   border-radius:11px;background:rgba(255,255,255,.72);margin-top:7px;
 }
 .iptv-source-main{min-width:0;flex:1}.iptv-source-name{font-weight:900;color:#126052}
+.iptv-source-meta{font-size:11px;color:#6b8a83;margin-top:2px;line-height:1.35;}
 .iptv-source-url{font-size:10px;color:#6a8a82;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
 .iptv-source-count{font-size:10px;font-weight:900;color:#4e8b7a;white-space:nowrap}
 .iptv-help{font-size:11px;line-height:1.5;color:#66847d;margin-top:8px}
@@ -1487,113 +1488,125 @@
 @media(max-width:600px){.library-switch{padding:7px 6px 0;gap:6px}.library-btn{padding:8px 12px;font-size:10px}}
 
 
-/* === SIRO TV app download area === */
+/* === SIRO TV app download area - compact === */
 .app-download{
-  margin:28px 0 10px;
-  background:linear-gradient(180deg,#f8fffc 0%,#ffffff 100%);
-  border:1px solid #cfe9df;
-  border-radius:18px;
-  box-shadow:0 8px 28px rgba(39,110,91,.10);
+  width:100%;
+  box-sizing:border-box;
+  margin:22px 0 8px;
+  background:rgba(255,255,255,.92);
+  border:1px solid #cfe7df;
+  border-radius:16px;
   overflow:hidden;
+  box-shadow:0 5px 18px rgba(39,110,91,.08);
 }
 .app-download-head{
-  padding:18px 20px 14px;
-  text-align:center;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:13px 18px;
   border-bottom:1px solid #dcefe9;
-  background:linear-gradient(135deg,#e8faf4,#ffffff);
+  background:linear-gradient(90deg,#eefaf6,#ffffff);
 }
 .app-download-title{
   margin:0;
   color:#126052;
-  font-size:19px;
+  font-size:16px;
   font-weight:950;
-  letter-spacing:.1px;
+  white-space:nowrap;
 }
 .app-download-sub{
-  margin-top:6px;
+  margin:0;
   color:#6b8981;
-  font-size:13px;
+  font-size:11.5px;
+  text-align:right;
 }
 .app-download-grid{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:16px;
-  padding:18px;
+  gap:10px;
+  padding:11px;
 }
 .app-card{
   min-width:0;
-  border:1px solid #d4eae4;
-  border-radius:16px;
-  padding:18px;
+  display:grid;
+  grid-template-columns:42px 1fr;
+  grid-template-rows:auto auto 34px;
+  column-gap:10px;
+  row-gap:2px;
+  align-items:center;
+  border:1px solid #d7ebe5;
+  border-radius:12px;
+  padding:10px 11px;
   background:#fff;
-  display:flex;
-  flex-direction:column;
-  align-items:stretch;
-  gap:9px;
-  min-height:190px;
-  box-shadow:0 5px 18px rgba(39,110,91,.07);
-  transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
+  box-shadow:0 2px 8px rgba(39,110,91,.045);
+  transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;
 }
 .app-card:hover{
-  transform:translateY(-3px);
-  border-color:#a9d9cb;
-  box-shadow:0 10px 25px rgba(39,110,91,.13);
+  transform:translateY(-2px);
+  border-color:#abd9cc;
+  box-shadow:0 7px 16px rgba(39,110,91,.10);
 }
 .app-icon{
-  width:54px;
-  height:54px;
-  border-radius:15px;
+  grid-row:1 / span 2;
+  width:42px;
+  height:42px;
+  border-radius:11px;
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:29px;
-  background:#edf9f5;
-  border:1px solid #d5eee7;
+  font-size:23px;
+  background:#eef9f5;
+  border:1px solid #d6eee7;
 }
 .app-name{
-  font-size:15px;
-  line-height:1.3;
+  min-width:0;
+  font-size:13.5px;
+  line-height:1.25;
   font-weight:900;
   color:#126052;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 .app-platform{
+  min-width:0;
   color:#718d86;
-  font-size:12.5px;
-  line-height:1.45;
-  min-height:36px;
-  flex:1;
+  font-size:10.5px;
+  line-height:1.25;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 .app-download-btn{
+  grid-column:1 / -1;
   width:100%;
+  height:34px;
   box-sizing:border-box;
   display:flex;
   align-items:center;
   justify-content:center;
-  min-height:42px;
-  border-radius:11px;
+  border-radius:9px;
   background:linear-gradient(135deg,#39ae8a,#2f9d7d);
   color:#fff !important;
   text-decoration:none;
   font-weight:900;
-  font-size:13px;
-  box-shadow:0 5px 12px rgba(47,157,125,.18);
-  transition:.18s ease;
+  font-size:11.5px;
+  box-shadow:none;
+  transition:.16s ease;
 }
 .app-download-btn:hover{
-  transform:translateY(-1px);
   filter:brightness(1.05);
+  transform:none;
+}
+@media(max-width:900px){
+  .app-download-head{display:block;text-align:center}
+  .app-download-sub{margin-top:3px;text-align:center}
 }
 @media(max-width:760px){
-  .app-download-grid{
-    grid-template-columns:1fr;
-    padding:14px;
-  }
-  .app-card{
-    min-height:160px;
-  }
-  .app-download-title{
-    font-size:17px;
-  }
+  .app-download{margin-top:16px}
+  .app-download-grid{grid-template-columns:1fr;padding:9px}
+  .app-card{grid-template-columns:42px 1fr;min-height:0}
 }
 </style>
 
@@ -2136,7 +2149,7 @@ function renderIptvSources(){
       <div class="iptv-source-main">
         <div class="iptv-source-name">📡 ${esc(s.name||"Playlist IPTV")}</div>
         <div class="iptv-source-url" title="${esc(s.url||"File M3U")}">${esc(s.url||"📁 File M3U trên trình duyệt")}</div>
-        <div class="iptv-source-url">((s.count||0)+" mục · "+esc(date))</div>
+        <div class="iptv-source-meta">${Number(s.count||0)} mục · ${esc(date)}</div>
       </div>
       ${s.file ? "" : `<button class="iptv-btn secondary" type="button" onclick="refreshSingleIptv('${esc(s.id)}')">↻</button>`}
       <button class="iptv-btn danger" type="button" onclick="removeIptvSource('${esc(s.id)}')">×</button>
@@ -3002,7 +3015,7 @@ setupMobileLandscape();setupMobileTouchLock();renderGroups();renderTabs();render
     <article class="app-card">
       <div class="app-icon">📱</div>
       <div class="app-name">SIRO TV – Android Mobile</div>
-      <div class="app-platform">Dành cho điện thoại Android<br>Định dạng: APK</div>
+      <div class="app-platform">Android · Điện thoại · APK</div>
       <a class="app-download-btn"
          href="https://github.com/hoangcongson/tv/releases/download/android/SIROTV.apk"
          target="_blank" rel="noopener">⬇️ TẢI APK</a>
@@ -3011,7 +3024,7 @@ setupMobileLandscape();setupMobileTouchLock();renderGroups();renderTabs();render
     <article class="app-card">
       <div class="app-icon">📺</div>
       <div class="app-name">SIRO TV – Android TV</div>
-      <div class="app-platform">Dành cho Android TV / TV Box<br>Định dạng: APK</div>
+      <div class="app-platform">Android TV · TV Box · APK</div>
       <a class="app-download-btn"
          href="https://github.com/hoangcongson/tv/releases/download/android/SIRO-ATV.apk"
          target="_blank" rel="noopener">⬇️ TẢI APK</a>
@@ -3020,7 +3033,7 @@ setupMobileLandscape();setupMobileTouchLock();renderGroups();renderTabs();render
     <article class="app-card">
       <div class="app-icon">🍎</div>
       <div class="app-name">SIRO TV – iPhone &amp; iPad</div>
-      <div class="app-platform">Dành cho iPhone / iPad<br>Định dạng: IPA</div>
+      <div class="app-platform">iPhone / iPad · IPA</div>
       <a class="app-download-btn"
          href="https://github.com/hoangcongson/tv/releases/download/android/SIRO-TV.ipa"
          target="_blank" rel="noopener">⬇️ TẢI IPA</a>
