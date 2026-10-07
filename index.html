@@ -1514,7 +1514,12 @@
     </div>
 
     <div class="iptv-box">
-      <label class="iptv-label">🔗 Thêm bằng link M3U / M3U8</label>
+      <label class="iptv-label">🏷️ Tên playlist</label>
+      <input id="iptvNameInput" class="iptv-input" type="text"
+        placeholder="Ví dụ: LiveSport, Bóng đá, IPTV Việt Nam..." autocomplete="off"
+        style="width:100%;margin-bottom:9px">
+
+      <label class="iptv-label">🔗 Link M3U / M3U8</label>
       <div class="iptv-row">
         <input id="iptvUrlInput" class="iptv-input" type="url"
           placeholder="example.com/playlist.m3u hoặc livesport.io.vn/easport" autocomplete="off">
@@ -1822,6 +1827,17 @@ function closeIptvManager(){
   const m=document.getElementById("iptvModal");
   if(m){m.classList.remove("open");m.setAttribute("aria-hidden","true");}
 }
+function isLiveSportWebUrl(url){
+  try{
+    const u=new URL(url);
+    return u.hostname.toLowerCase()==="livesport.io.vn" && (/^\/easport\/?$/i.test(u.pathname) || /easport/i.test(u.pathname));
+  }catch(e){ return /(^|\/)livesport\.io\.vn\/easport/i.test(String(url)); }
+}
+function openIptvWebSource(id){
+  const source=IPTV_SOURCES.find(x=>x.id===id);
+  if(!source?.url) return;
+  window.open(source.url,"_blank","noopener,noreferrer");
+}
 async function addIptvUrl(){
   const input=document.getElementById("iptvUrlInput");
   const raw=String(input?.value||"").trim();
@@ -1839,6 +1855,28 @@ async function addIptvUrl(){
   }
 
   if(input) input.value=url;
+
+  // LiveSport / các URL dạng web page không phải M3U: vẫn cho phép lưu vào IPTV
+  // và mở trực tiếp nguồn web. GitHub Pages không thể tự biến HTML của site khác
+  // thành M3U nếu nguồn không cho CORS hoặc không cung cấp playlist công khai.
+  if(isLiveSportWebUrl(url)){
+    const nameInput=document.getElementById("iptvNameInput");
+    const customName=String(nameInput?.value||"").trim();
+    const old=IPTV_SOURCES.find(x=>x.url===url);
+    const source={
+      id:old?.id || ("web-"+Date.now()+"-"+Math.random().toString(36).slice(2,8)),
+      name:customName || old?.name || "LiveSport",
+      url, count:0, updatedAt:new Date().toISOString(), web:true
+    };
+    IPTV_SOURCES=IPTV_SOURCES.filter(x=>x.url!==url);
+    IPTV_SOURCES.push(source);
+    saveIptvSources(); renderIptvSources();
+    if(input) input.value="";
+    if(nameInput) nameInput.value="";
+    setIptvStatus(`✓ Đã thêm nguồn web "${source.name}". Bấm "Mở" để chạy LiveSport.`);
+    return;
+  }
+
   setIptvStatus("⏳ Đang tìm và tải playlist: "+url);
 
   try{
@@ -1863,10 +1901,12 @@ async function addIptvUrl(){
     let hostname=url;
     try{ hostname=new URL(url).hostname; }catch(e){}
 
+    const nameInput=document.getElementById("iptvNameInput");
+    const customName=String(nameInput?.value||"").trim();
     const old=IPTV_SOURCES.find(x=>x.url===url);
     const source={
       id:old?.id || ("iptv-"+Date.now()+"-"+Math.random().toString(36).slice(2,8)),
-      name:old?.name || playlistNameFromText(text) || hostname,
+      name:customName || old?.name || playlistNameFromText(text) || hostname,
       url,
       count:parsed.length,
       updatedAt:new Date().toISOString()
@@ -1888,6 +1928,7 @@ async function addIptvUrl(){
     renderIptvSources();
 
     if(input) input.value="";
+    if(nameInput) nameInput.value="";
     setIptvStatus(`✓ Đã tìm thấy và thêm "${source.name}" — ${parsed.length} kênh.`);
   }catch(e){
     console.error("IPTV:",e);
@@ -1950,9 +1991,9 @@ function renderIptvSources(){
       <div class="iptv-source-main">
         <div class="iptv-source-name">📡 ${esc(s.name||"Playlist IPTV")}</div>
         <div class="iptv-source-url" title="${esc(s.url||"File M3U")}">${esc(s.url||"📁 File M3U trên trình duyệt")}</div>
-        <div class="iptv-source-url">${s.count||0} kênh · ${esc(date)}</div>
+        <div class="iptv-source-url">${s.web ? "🌐 Nguồn web · bấm Mở để chạy" : ((s.count||0)+" kênh · "+esc(date))}</div>
       </div>
-      ${s.file ? "" : `<button class="iptv-btn secondary" type="button" onclick="refreshSingleIptv('${esc(s.id)}')">↻</button>`}
+      ${s.web ? `<button class="iptv-btn secondary" type="button" onclick="openIptvWebSource('${esc(s.id)}')">Mở</button>` : (s.file ? "" : `<button class="iptv-btn secondary" type="button" onclick="refreshSingleIptv('${esc(s.id)}')">↻</button>`)}
       <button class="iptv-btn danger" type="button" onclick="removeIptvSource('${esc(s.id)}')">×</button>
     </div>`;
   }).join("");
@@ -1976,10 +2017,17 @@ function clearIptvSources(){
 }
 function setupIptvUrlInput(){
   const input=document.getElementById("iptvUrlInput");
+  const name=document.getElementById("iptvNameInput");
   input?.addEventListener("keydown",e=>{
     if(e.key==="Enter"){
       e.preventDefault();
       addIptvUrl();
+    }
+  });
+  name?.addEventListener("keydown",e=>{
+    if(e.key==="Enter"){
+      e.preventDefault();
+      input?.focus();
     }
   });
 }
