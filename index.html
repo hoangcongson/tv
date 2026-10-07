@@ -1608,7 +1608,115 @@
   .app-download-grid{grid-template-columns:1fr;padding:9px}
   .app-card{grid-template-columns:42px 1fr;min-height:0}
 }
+
+/* === Mobile header refinement === */
+@media (max-width: 600px){
+  header{
+    margin: 6px 6px 10px !important;
+    padding: 10px 12px !important;
+    min-height: 92px !important;
+    border-radius: 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+  }
+
+  header .brand,
+  header .logo,
+  header .brand-wrap{
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+  }
+
+  header img{
+    max-width: 42px !important;
+    max-height: 42px !important;
+  }
+
+  header h1,
+  header .brand-title,
+  header .site-title{
+    font-size: 19px !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 150px !important;
+  }
+
+  header .subtitle,
+  header .tagline,
+  header small{
+    font-size: 8px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 155px !important;
+  }
+
+  header .actions,
+  header .header-actions{
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+
+  header button{
+    min-height: 38px !important;
+    padding: 7px 10px !important;
+    border-radius: 10px !important;
+    font-size: 11px !important;
+    white-space: nowrap !important;
+  }
+
+  /* If the existing header uses direct buttons rather than an actions wrapper */
+  header > button{
+    flex: 0 0 auto !important;
+  }
+
+  header .brand + div{
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 390px){
+  header{
+    padding: 9px 10px !important;
+    min-height: 86px !important;
+  }
+
+  header img{
+    max-width: 38px !important;
+    max-height: 38px !important;
+  }
+
+  header h1,
+  header .brand-title,
+  header .site-title{
+    font-size: 17px !important;
+    max-width: 125px !important;
+  }
+
+  header .subtitle,
+  header .tagline,
+  header small{
+    font-size: 7px !important;
+    max-width: 130px !important;
+  }
+
+  header button{
+    min-height: 36px !important;
+    padding: 6px 8px !important;
+    font-size: 10px !important;
+  }
+}
+
+
 </style>
+
 
 
 
@@ -1722,25 +1830,7 @@
 </main>
 <aside class="side"><div class="side-title">📚 DANH MỤC KÊNH</div><input id="search" class="search" placeholder="🔎 Tìm trong danh sách hiện tại..." autocomplete="off" oninput="renderChannels()"><div class="group-list" id="groups"></div></aside>
 </div>
-<footer class="footer status-footer" aria-label="Thông tin hệ thống">
-  <div class="status-bar">
 
-    <div class="status-date">
-      <div class="status-date-copy">
-        <span class="status-label" id="statusWeekday">Thứ hai</span>
-        <span class="status-value" id="solarDate">28/09/2026</span>
-        <span class="status-lunar" id="lunarDate">🌙 Âm lịch · 17/08/2026</span>
-      </div>
-    </div>
-
-    <div class="status-time" id="statusTime">15:20:51</div>
-
-    <div class="status-live">
-      <span class="status-live-dot"></span>
-      <span>LIVE</span>
-    </div>
-  </div>
-</footer>
 </div>
 
 
@@ -3041,5 +3131,24 @@ setupMobileLandscape();setupMobileTouchLock();renderGroups();renderTabs();render
   </div>
 </section>
 
+<footer class="footer status-footer" aria-label="Thông tin hệ thống">
+  <div class="status-bar">
+
+    <div class="status-date">
+      <div class="status-date-copy">
+        <span class="status-label" id="statusWeekday">Thứ hai</span>
+        <span class="status-value" id="solarDate">28/09/2026</span>
+        <span class="status-lunar" id="lunarDate">🌙 Âm lịch · 17/08/2026</span>
+      </div>
+    </div>
+
+    <div class="status-time" id="statusTime">15:20:51</div>
+
+    <div class="status-live">
+      <span class="status-live-dot"></span>
+      <span>LIVE</span>
+    </div>
+  </div>
+</footer>
 </body>
 </html>
