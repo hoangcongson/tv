@@ -1949,115 +1949,137 @@ function closeIptvManager(){
 function isLiveSportWebUrl(url){
   try{
     const u=new URL(url);
-    return u.hostname.toLowerCase()==="livesport.io.vn" && (/^\/easport\/?$/i.test(u.pathname) || /easport/i.test(u.pathname));
-  }catch(e){ return /(^|\/)livesport\.io\.vn\/easport/i.test(String(url)); }
+    return u.hostname.toLowerCase()==="livesport.io.vn" && /easport/i.test(u.pathname);
+  }catch(e){ return /livesport\.io\.vn\/.*easport/i.test(String(url)); }
 }
+
+// LiveSport là nguồn web động, không phải M3U tĩnh. Nếu có adapter/backend,
+// đặt URL tại đây (ví dụ Cloudflare Worker): https://your-worker.example/api/livesport?url=
+// Để trống sẽ thử đọc trực tiếp trước.
+const LIVESPORT_ADAPTER_URL = "";
+
+function parseIptvPayload(payload, fallbackGroup="⚽ LiveSport"){
+  if(!payload) return [];
+  // JSON phổ biến: {m3u:"..."}, {playlist:"..."}, {channels:[...]}, hoặc mảng channel.
+  if(typeof payload === "object"){
+    if(typeof payload.m3u === "string") return parseM3U(payload.m3u,fallbackGroup);
+    if(typeof payload.playlist === "string") return parseM3U(payload.playlist,fallbackGroup);
+    const arr=Array.isArray(payload)?payload:(Array.isArray(payload.channels)?payload.channels:(Array.isArray(payload.data)?payload.data:[]));
+    if(arr.length){
+      return uniqueIptvChannels(arr.map((x,i)=>({
+        name:x.name||x.title||x.channel||`LiveSport ${i+1}`,
+        group:x.group||x.groupTitle||fallbackGroup,
+        logo:x.logo||x.icon||"",
+        tvgId:x.tvgId||"",
+        tvgName:x.tvgName||x.name||"",
+        url:x.url||x.stream||x.streamUrl||x.play||""
+      })).filter(x=>/^https?:\/\//i.test(x.url)));
+    }
+    return [];
+  }
+  const text=String(payload||"").trim();
+  if(/#EXTINF:/i.test(text)) return parseM3U(text,fallbackGroup);
+  // Một số adapter trả về JSON dưới dạng text.
+  try{return parseIptvPayload(JSON.parse(text),fallbackGroup);}catch(e){}
+  return [];
+}
+
+async function fetchLiveSportChannels(url){
+  const attempts=[];
+  if(LIVESPORT_ADAPTER_URL){
+    const sep=LIVESPORT_ADAPTER_URL.includes("?")?"&":"?";
+    attempts.push(LIVESPORT_ADAPTER_URL+sep+"url="+encodeURIComponent(url)+"&_hcs="+Date.now());
+  }
+  attempts.push(url);
+  try{
+    const u=new URL(url);
+    if(u.hostname.toLowerCase()==="livesport.io.vn"){
+      attempts.push("https://livesport.io.vn/link/easportsss");
+    }
+  }catch(e){}
+
+  let lastError=null;
+  for(const target of attempts){
+    try{
+      const res=await fetch(target,{cache:"no-store",redirect:"follow"});
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      const ct=(res.headers.get("content-type")||"").toLowerCase();
+      const text=await res.text();
+      let parsed=[];
+      if(ct.includes("json")){ try{parsed=parseIptvPayload(JSON.parse(text),"⚽ LiveSport");}catch(e){} }
+      if(!parsed.length) parsed=parseIptvPayload(text,"⚽ LiveSport");
+      if(parsed.length) return parsed;
+
+      // Nếu HTML có sẵn EXTINF/stream URLs thì vẫn cố gắng bóc ra.
+      if(/<html|<body|<script/i.test(text)){
+        const urls=[...text.matchAll(/https?:\/\/[^\s"'<>]+/gi)].map(m=>m[0].replace(/[),;]+$/,""));
+        const streamUrls=urls.filter(x=>/\.(m3u8?|ts)(\?|$)/i.test(x));
+        if(streamUrls.length) return uniqueIptvChannels(streamUrls.map((x,i)=>({name:`LiveSport ${i+1}`,group:"⚽ LiveSport",logo:"",url:x})));
+      }
+      lastError=new Error("Nguồn không chứa M3U/danh sách stream");
+    }catch(e){ lastError=e; }
+  }
+  throw lastError||new Error("Không đọc được LiveSport");
+}
+
 function openIptvWebSource(id){
   const source=IPTV_SOURCES.find(x=>x.id===id);
   if(!source?.url) return;
   window.open(source.url,"_blank","noopener,noreferrer");
 }
+
 async function addIptvUrl(){
   const input=document.getElementById("iptvUrlInput");
   const raw=String(input?.value||"").trim();
   const url=normalizeIptvUrl(raw);
-
-  if(!url){
-    setIptvStatus("Hãy nhập link IPTV/M3U.",true);
-    return;
-  }
-
-  // Chỉ http/https mới có thể được fetch trực tiếp từ trình duyệt.
-  if(!/^https?:\/\//i.test(url)){
-    setIptvStatus("Link này không phải HTTP/HTTPS nên trình duyệt không thể tải trực tiếp.",true);
-    return;
-  }
-
+  if(!url){ setIptvStatus("Hãy nhập link IPTV/M3U.",true); return; }
+  if(!/^https?:\/\//i.test(url)){ setIptvStatus("Link này không phải HTTP/HTTPS.",true); return; }
   if(input) input.value=url;
+  const nameInput=document.getElementById("iptvNameInput");
+  const customName=String(nameInput?.value||"").trim();
 
-  // LiveSport / các URL dạng web page không phải M3U: vẫn cho phép lưu vào IPTV
-  // và mở trực tiếp nguồn web. GitHub Pages không thể tự biến HTML của site khác
-  // thành M3U nếu nguồn không cho CORS hoặc không cung cấp playlist công khai.
-  if(isLiveSportWebUrl(url)){
-    const nameInput=document.getElementById("iptvNameInput");
-    const customName=String(nameInput?.value||"").trim();
-    const old=IPTV_SOURCES.find(x=>x.url===url);
-    const source={
-      id:old?.id || ("web-"+Date.now()+"-"+Math.random().toString(36).slice(2,8)),
-      name:customName || old?.name || "LiveSport",
-      url, count:0, updatedAt:new Date().toISOString(), web:true
-    };
-    IPTV_SOURCES=IPTV_SOURCES.filter(x=>x.url!==url);
-    IPTV_SOURCES.push(source);
-    saveIptvSources(); renderIptvSources();
-    if(input) input.value="";
-    if(nameInput) nameInput.value="";
-    setIptvStatus(`✓ Đã thêm nguồn web "${source.name}". Bấm "Mở" để chạy LiveSport.`);
-    return;
-  }
-
-  setIptvStatus("⏳ Đang tìm và tải playlist: "+url);
-
+  setIptvStatus("⏳ Đang đọc playlist "+(isLiveSportWebUrl(url)?"LiveSport":"IPTV")+"...");
   try{
-    // Thử URL nguyên bản trước. Nếu máy chủ chặn query thì vẫn còn lần thử này.
-    let res;
-    try{
-      res=await fetch(url,{cache:"no-store",redirect:"follow"});
-    }catch(e){
-      const sep=url.includes("?")?"&":"?";
-      res=await fetch(url+sep+"_hcs="+Date.now(),{cache:"no-store",redirect:"follow"});
+    let parsed=[];
+    if(isLiveSportWebUrl(url)){
+      parsed=await fetchLiveSportChannels(url);
+    }else{
+      let res;
+      try{ res=await fetch(url,{cache:"no-store",redirect:"follow"}); }
+      catch(e){
+        const sep=url.includes("?")?"&":"?";
+        res=await fetch(url+sep+"_hcs="+Date.now(),{cache:"no-store",redirect:"follow"});
+      }
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      const text=await res.text();
+      parsed=parseIptvPayload(text,"📡 IPTV");
+      if(!parsed.length) throw new Error("Không tìm thấy dữ liệu M3U trong nguồn");
     }
 
-    if(!res.ok) throw new Error("HTTP "+res.status);
-
-    const text=await res.text();
-    const parsed=parseM3U(text,"📡 IPTV");
-
-    if(!parsed.length){
-      throw new Error("Không tìm thấy dữ liệu M3U trong nguồn");
-    }
-
-    let hostname=url;
-    try{ hostname=new URL(url).hostname; }catch(e){}
-
-    const nameInput=document.getElementById("iptvNameInput");
-    const customName=String(nameInput?.value||"").trim();
+    let hostname=url; try{hostname=new URL(url).hostname;}catch(e){}
     const old=IPTV_SOURCES.find(x=>x.url===url);
     const source={
       id:old?.id || ("iptv-"+Date.now()+"-"+Math.random().toString(36).slice(2,8)),
-      name:customName || old?.name || playlistNameFromText(text) || hostname,
-      url,
-      count:parsed.length,
-      updatedAt:new Date().toISOString()
+      name:customName || old?.name || (isLiveSportWebUrl(url)?"LiveSport":hostname),
+      url,count:parsed.length,updatedAt:new Date().toISOString(),web:false,
+      adapter:isLiveSportWebUrl(url)&&!!LIVESPORT_ADAPTER_URL
     };
-
     IPTV_SOURCES=IPTV_SOURCES.filter(x=>x.url!==url);
     IPTV_SOURCES.push(source);
-
-    // Thay các kênh thuộc cùng nguồn bằng bản mới.
     IPTV_IMPORTED=IPTV_IMPORTED.filter(c=>c.sourceId!==source.id);
     IPTV_IMPORTED.push(...parsed.map(c=>({...c,sourceId:source.id})));
-
-    saveIptvSources();
-    saveIptvImported();
-    rebuildIptvChannels();
-    renderGroups();
-    renderTabs();
-    renderChannels();
-    renderIptvSources();
-
-    if(input) input.value="";
-    if(nameInput) nameInput.value="";
-    setIptvStatus(`✓ Đã tìm thấy và thêm "${source.name}" — ${parsed.length} kênh.`);
+    saveIptvSources(); saveIptvImported();
+    rebuildIptvChannels(); renderGroups(); renderTabs(); renderChannels(); renderIptvSources();
+    if(input) input.value=""; if(nameInput) nameInput.value="";
+    setIptvStatus(`✓ Đã thêm "${source.name}" — ${parsed.length} mục.`);
   }catch(e){
     console.error("IPTV:",e);
-    setIptvStatus(
-      "Không tải được link. Nếu đây là trang web chứ không phải M3U/M3U8, " +
-      "hoặc máy chủ không cho phép CORS, web sẽ không đọc trực tiếp được nguồn này.",
-      true
-    );
+    setIptvStatus(isLiveSportWebUrl(url)
+      ? "Không lấy được danh sách LiveSport. Nguồn này là web động; GitHub Pages cần một adapter/backend có CORS để đọc và chuyển nó thành M3U/JSON."
+      : "Không tải được playlist. Kiểm tra URL, M3U/M3U8 và CORS.",true);
   }
 }
+
 function playlistNameFromText(text){
   const m=String(text||"").match(/#PLAYLIST\s*:\s*(.+)/i);
   return m?m[1].trim():"";
@@ -2071,11 +2093,15 @@ function removeIptvSource(id){
 }
 async function refreshOneIptvSource(source){
   try{
-    const sep=source.url.includes("?")?"&":"?";
-    const res=await fetch(source.url+sep+"_hcs="+Date.now(),{cache:"no-store"});
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    const text=await res.text();
-    const parsed=parseM3U(text,"📡 IPTV");
+    let parsed=[];
+    if(isLiveSportWebUrl(source.url)){
+      parsed=await fetchLiveSportChannels(source.url);
+    }else{
+      const sep=source.url.includes("?")?"&":"?";
+      const res=await fetch(source.url+sep+"_hcs="+Date.now(),{cache:"no-store",redirect:"follow"});
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      parsed=parseIptvPayload(await res.text(),"📡 IPTV");
+    }
     if(!parsed.length) throw new Error("Playlist rỗng");
     source.count=parsed.length; source.updatedAt=new Date().toISOString();
     IPTV_IMPORTED=IPTV_IMPORTED.filter(c=>c.sourceId!==source.id);
@@ -2110,9 +2136,9 @@ function renderIptvSources(){
       <div class="iptv-source-main">
         <div class="iptv-source-name">📡 ${esc(s.name||"Playlist IPTV")}</div>
         <div class="iptv-source-url" title="${esc(s.url||"File M3U")}">${esc(s.url||"📁 File M3U trên trình duyệt")}</div>
-        <div class="iptv-source-url">${s.web ? "🌐 Nguồn web · bấm Mở để chạy" : ((s.count||0)+" kênh · "+esc(date))}</div>
+        <div class="iptv-source-url">((s.count||0)+" mục · "+esc(date))</div>
       </div>
-      ${s.web ? `<button class="iptv-btn secondary" type="button" onclick="openIptvWebSource('${esc(s.id)}')">Mở</button>` : (s.file ? "" : `<button class="iptv-btn secondary" type="button" onclick="refreshSingleIptv('${esc(s.id)}')">↻</button>`)}
+      ${s.file ? "" : `<button class="iptv-btn secondary" type="button" onclick="refreshSingleIptv('${esc(s.id)}')">↻</button>`}
       <button class="iptv-btn danger" type="button" onclick="removeIptvSource('${esc(s.id)}')">×</button>
     </div>`;
   }).join("");
