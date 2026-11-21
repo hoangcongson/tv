@@ -1342,27 +1342,78 @@
     width:100%;
     max-width:100%;
     padding:8px;
-    grid-template-columns:repeat(3,minmax(0,1fr));
-    gap:6px;
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    gap:8px !important;
   }
 
   .channel{
     min-width:0;
-    padding:5px;
-    border-radius:9px;
+    padding:8px 6px !important;
+    border-radius:11px !important;
+    display:flex !important;
+    flex-direction:column !important;
+    justify-content:space-between !important;
+    min-height:0 !important;
   }
 
   .logo{
-    height:38px;
+    height:44px !important;
   }
 
   .logo img{
-    max-height:32px;
+    max-height:38px !important;
   }
 
   .cname{
-    font-size:9px;
-    margin-top:5px;
+    font-size:11px !important;
+    line-height:1.35 !important;
+    margin-top:6px !important;
+    white-space:normal !important;
+    word-break:break-word !important;
+    overflow:visible !important;
+    display:block !important;
+    -webkit-line-clamp:unset !important;
+    min-height:0 !important;
+  }
+
+  .c-match-title{
+    font-size:11.5px !important;
+    font-weight:800 !important;
+    line-height:1.35 !important;
+    color:#15332d !important;
+    word-break:break-word !important;
+    display:block !important;
+  }
+
+  .c-time-badge{
+    font-size:9.5px !important;
+    padding:2px 7px !important;
+    font-weight:900 !important;
+  }
+
+  .c-provider-badge{
+    font-size:9px !important;
+    padding:2px 6px !important;
+    font-weight:800 !important;
+  }
+
+  .c-badge-row{
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    gap:4px !important;
+    flex-wrap:wrap !important;
+    margin-bottom:4px !important;
+  }
+
+  .iptv-quick-filters{
+    padding:6px 6px 3px !important;
+    gap:5px !important;
+  }
+
+  .qf-btn{
+    padding:4px 10px !important;
+    font-size:10px !important;
   }
 
   .fav-btn{
