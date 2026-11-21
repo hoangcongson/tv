@@ -287,7 +287,11 @@
 .c-badge-row{display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:wrap;margin-bottom:4px}
 .c-time-badge{display:inline-block;font-size:10px;font-weight:900;color:#126052;background:#dff5ed;padding:2px 8px;border-radius:999px;border:1px solid #bcead9;letter-spacing:.2px;white-space:nowrap}
 .c-provider-badge{display:inline-block;font-size:9px;font-weight:900;color:#165b4c;background:#cbf0e4;padding:2px 7px;border-radius:999px;border:1px solid #9cd8c7;white-space:nowrap;letter-spacing:.2px}
-.c-match-title{display:block;font-size:12px;font-weight:800;color:#15332d;line-height:1.32}.side{padding:0}.side-title{background:var(--teal);color:#fff;padding:12px;font-weight:900}
+.c-match-title{display:block;font-size:12px;font-weight:800;color:#15332d;line-height:1.32}
+.iptv-quick-filters{display:flex;gap:7px;padding:10px 14px 4px;overflow-x:auto;background:rgba(255,255,255,.5);border-bottom:1px solid rgba(197,230,220,.5)}
+.qf-btn{border:1px solid #c2e2d8;background:#fff;color:#126052;border-radius:999px;padding:5px 13px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;transition:all .18s ease;box-shadow:0 1px 4px rgba(18,96,82,.06)}
+.qf-btn:hover{background:#e8f7f2;border-color:#39a982}
+.qf-btn.active{background:#237b68;color:#fff;border-color:#237b68;box-shadow:0 3px 10px rgba(35,123,104,.24)}.side{padding:0}.side-title{background:var(--teal);color:#fff;padding:12px;font-weight:900}
 .search{margin:10px;width:calc(100% - 20px);padding:10px;border:1px solid var(--line);border-radius:9px;outline:none}.group-list{padding:0 10px 12px;max-height:580px;overflow:auto}
 .gitem{display:flex;align-items:center;gap:8px;padding:10px;border-radius:9px;margin-top:5px;cursor:pointer;font-weight:800;color:var(--deep)}.gitem:hover,.gitem.active{background:var(--mint)}.gicon{font-size:19px}
 .section-title{background:var(--teal);color:#fff;padding:12px 15px;font-weight:900}.footer{margin-top:14px;background:var(--teal2);color:#eafff8;padding:15px;border-radius:14px;text-align:center;font-size:13px}.footer a{color:#fff;font-weight:800}.empty{padding:30px;text-align:center;color:#64847b;grid-column:1/-1}
@@ -1844,7 +1848,14 @@
   <div class="iptv-library-tag" id="iptvLibraryTag" style="display:none">📡 Khu IPTV riêng · không trộn với TV của bạn</div>
   <div class="tabs" id="tabs"></div>
 </div>
-<section class="section"><div class="section-title">✨ CHỌN KÊNH TRUYỀN HÌNH</div><div class="channels" id="channels"></div></section>
+<section class="section"><div class="section-title">✨ CHỌN KÊNH TRUYỀN HÌNH</div>
+<div id="iptvQuickFilters" class="iptv-quick-filters" style="display:none">
+  <button type="button" class="qf-btn active" data-filter="all" onclick="setIptvQuickFilter('all', this)">🔥 Tất cả trận</button>
+  <button type="button" class="qf-btn" data-filter="live" onclick="setIptvQuickFilter('live', this)">🟢 Đang đá (Live)</button>
+  <button type="button" class="qf-btn" data-filter="today" onclick="setIptvQuickFilter('today', this)">📅 Trận hôm nay</button>
+  <button type="button" class="qf-btn" data-filter="tomorrow" onclick="setIptvQuickFilter('tomorrow', this)">🗓️ Trận ngày mai</button>
+</div>
+<div class="channels" id="channels"></div></section>
 </main>
 <aside class="side"><div class="side-title">📚 DANH MỤC KÊNH</div><input id="search" class="search" placeholder="🔎 Tìm trong danh sách hiện tại..." autocomplete="off" oninput="renderChannels()"><div class="group-list" id="groups"></div></aside>
 </div>
@@ -2059,6 +2070,16 @@ function rebuildGroupsAfterIptv(){
 }
 function getIptvSources(){return IPTV_SOURCES.filter(s=>s && (s.url||s.file));}
 function getIptvChannels(){return CHANNELS.filter(c=>!!c.sourceId);}
+const PROVIDER_ORDER = [
+  "Xôi Lạc", "S8TV", "Về Bờ", "VeBo", "Lẩu Thái", "Chuối Chiên", "Kèo VIP", "LiveSport", "Bsports", "FreeM3U"
+];
+function providerRank(g){
+  const str = String(g||"");
+  for(let i=0; i<PROVIDER_ORDER.length; i++){
+    if(str.includes(PROVIDER_ORDER[i])) return i;
+  }
+  return 99;
+}
 function getIptvGroups(){
   const out=[]; const seen=new Set();
   for(const s of getIptvSources()){
@@ -2068,10 +2089,15 @@ function getIptvGroups(){
       const allKey = s.id + "::__ALL__";
       if(!seen.has(allKey)){
         seen.add(allKey);
-        out.push({key: allKey, sourceId: s.id, source: s.name||"Bóng đá", group: "⚽ Tất cả trận đấu (" + chans.length + ")", isAll: true});
+        out.push({key: allKey, sourceId: s.id, source: s.name||"Bóng đá", group: "⚽ Tất cả các luồng (" + chans.length + ")", isAll: true});
       }
     }
     const groups=[...new Set(chans.map(c=>c.group||"📡 IPTV"))];
+    groups.sort((a,b)=>{
+      const ra=providerRank(a), rb=providerRank(b);
+      if(ra!==rb) return ra-rb;
+      return a.localeCompare(b,"vi");
+    });
     for(const g of groups){
       const key=s.id+"::"+g;
       if(!seen.has(key)){
@@ -2088,6 +2114,7 @@ function setLibraryButtons(){
   document.getElementById("libraryTvBtn")?.classList.toggle("active",currentLibrary==="tv");
   document.getElementById("libraryIptvBtn")?.classList.toggle("active",currentLibrary==="iptv");
   const tag=document.getElementById("iptvLibraryTag"); if(tag) tag.style.display=currentLibrary==="iptv"?"inline-flex":"none";
+  const qf=document.getElementById("iptvQuickFilters"); if(qf) qf.style.display=currentLibrary==="iptv"?"flex":"none";
   const title=document.querySelector(".section-title"); if(title) title.textContent=currentLibrary==="iptv"?"📡 KÊNH IPTV RIÊNG":"✨ CHỌN KÊNH TRUYỀN HÌNH";
   const search=document.getElementById("search"); if(search) search.placeholder=currentLibrary==="iptv"?"🔎 Tìm trong IPTV...":"🔎 Tìm trong TV của tôi...";
 }
@@ -2667,21 +2694,48 @@ if(CHANNELS.some(c=>normalizeGroupName(c.group).includes("DIA PHUONG")) && !GROU
 }
 
 function channelOrder(c){
-  const n = c.name.toUpperCase().replace(/[^A-Z0-9]/g,"");
+  const rawName = String(c.name||"");
+  const matchRegex = /(\d{1,2}):(\d{2})\s+(\d{1,2})\/(\d{1,2})/;
+  const matchTime = rawName.match(matchRegex);
+
+  // Sắp xếp thông minh cho các trận bóng đá
+  if(matchTime || rawName.includes("⚽")){
+    // 0: Đang đá trực tiếp (🟢), 1: Sắp diễn ra (🔴/⏰), 2: Các trận khác
+    const statusScore = rawName.includes("🟢") ? 0 : (rawName.includes("🔴") ? 1 : (rawName.includes("⏰") ? 2 : 3));
+    
+    // Sắp xếp theo dòng thời gian (Tháng, Ngày, Giờ, Phút)
+    let timeScore = 99999999;
+    if(matchTime){
+      const hh = Number(matchTime[1]), mm = Number(matchTime[2]), dd = Number(matchTime[3]), MM = Number(matchTime[4]);
+      timeScore = MM * 1000000 + dd * 10000 + hh * 100 + mm;
+    }
+    
+    // Tên 2 đội rút gọn để gom tất cả các luồng của cùng 1 trận đấu nằm cạnh nhau
+    const cleanMatch = rawName
+      .replace(/^[🟢🔴⏰\s]*\d{1,2}:\d{2}\s+\d{1,2}\/\d{1,2}\s*⚽?\s*/, "")
+      .replace(/\s*\([^)]*\)/g, "")
+      .replace(/\s*\[[^\]]*\]/g, "")
+      .trim().toUpperCase();
+      
+    // Ưu tiên phát bằng HLS (.m3u8) trước .flv
+    const streamFormat = (c.url||"").toLowerCase().includes(".m3u8") ? 0 : 1;
+    
+    return [-99, statusScore, timeScore, cleanMatch, streamFormat, rawName];
+  }
+
+  const n = rawName.toUpperCase().replace(/[^A-Z0-9]/g,"");
   const g = normalizeGroupName(c.group);
 
-  // LSTV lên đầu trong nhóm Địa phương.
   if(g.includes("DIA PHUONG") && (n === "LSTV" || n.startsWith("LSTV"))){
     return [-1, 0, 0, n];
   }
-
   if(g === "DIA PHUONG" && (n === "LSTV" || n.startsWith("LSTV"))){
     return [-1, 0, 0, n];
   }
 
-  const m = n.match(/^VTV(\d{1,2})/);
-  if(m){
-    const num = Number(m[1]);
+  const mVtv = n.match(/^VTV(\d{1,2})/);
+  if(mVtv){
+    const num = Number(mVtv[1]);
     const hd = /HD/.test(n) ? 1 : 0;
     return [0, num, hd, n];
   }
@@ -2735,22 +2789,49 @@ function matchesChannelSearch(c,q){
   return name.includes(q)||group.includes(q);
 }
 
+let currentIptvFilter = "all";
+function setIptvQuickFilter(filter, btn){
+  currentIptvFilter = filter;
+  document.querySelectorAll(".qf-btn").forEach(b => b.classList.toggle("active", b === btn));
+  renderChannels();
+}
+
 function renderChannels(){
   const q=normalizeSearchText(document.getElementById("search").value);
   let list;
-
   if(currentLibrary==="iptv"){
     const iptv=getIptvChannels();
-    if(q) list=sortChannels(iptv.filter(c=>matchesChannelSearch(c,q)));
-    else {
+    let baseList = iptv;
+    if(q){
+      baseList = iptv.filter(c=>matchesChannelSearch(c,q));
+    } else {
       const obj=currentIptvGroupObj();
       if(obj && obj.isAll){
-        list=iptv.filter(c=>c.sourceId===obj.sourceId);
+        baseList = iptv.filter(c=>c.sourceId===obj.sourceId);
       } else {
         const targetGroup = obj?.rawGroup || obj?.group;
-        list=obj?sortChannels(iptv.filter(c=>c.sourceId===obj.sourceId && c.group===targetGroup)):[];
+        baseList = obj?iptv.filter(c=>c.sourceId===obj.sourceId && c.group===targetGroup):[];
       }
     }
+    
+    // Áp dụng bộ lọc nhanh: Đang đá, hôm nay, ngày mai
+    if(currentIptvFilter === "live"){
+      baseList = baseList.filter(c => String(c.name||"").includes("🟢"));
+    } else if(currentIptvFilter === "today"){
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, '0');
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const todayStr = `${dd}/${mm}`;
+      baseList = baseList.filter(c => String(c.name||"").includes(todayStr) || String(c.matchDate||"").includes(todayStr));
+    } else if(currentIptvFilter === "tomorrow"){
+      const tom = new Date(Date.now() + 86400000);
+      const dd = String(tom.getDate()).padStart(2, '0');
+      const mm = String(tom.getMonth() + 1).padStart(2, '0');
+      const tomStr = `${dd}/${mm}`;
+      baseList = baseList.filter(c => String(c.name||"").includes(tomStr) || String(c.matchDate||"").includes(tomStr));
+    }
+    
+    list = sortChannels(baseList);
   }else if(q){
     list=sortChannels(BUILTIN_CHANNELS.filter(c=>matchesChannelSearch(c,q)));
   }else if(currentGroup==="❤️ YÊU THÍCH"){
