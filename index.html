@@ -1749,6 +1749,20 @@
       <button class="iptv-close" type="button" onclick="closeIptvManager()" aria-label="Đóng">×</button>
     </div>
 
+    <div class="iptv-box" style="background:rgba(57,169,130,.10);border-color:#99ddcb">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div>
+          <label class="iptv-label" style="margin:0;color:#126052">⚽ Nguồn bóng đá tự động cập nhật</label>
+          <div class="iptv-help" style="margin-top:3px;color:#2f5850">
+            Nguồn <code>https://hoangcongson.github.io/bongda.m3u</code> (cập nhật liên tục từ hệ thống HCS).
+          </div>
+        </div>
+        <button class="iptv-btn" type="button" onclick="loadDefaultBongdaPlaylist(true)" style="background:#22806b;color:#fff;box-shadow:0 4px 12px rgba(34,128,107,.25);cursor:pointer">
+          ⚽ Cập nhật nguồn bóng đá
+        </button>
+      </div>
+    </div>
+
     <div class="iptv-box">
       <label class="iptv-label">🏷️ Tên playlist</label>
       <input id="iptvNameInput" class="iptv-input" type="text"
@@ -2256,6 +2270,52 @@ async function refreshSingleIptv(id){
   rebuildIptvChannels(); renderGroups(); renderTabs(); renderChannels(); renderIptvSources();
   setIptvStatus(`✓ ${source.name}: ${n} kênh mới.`);
 }
+const BONGDA_DEFAULT_URL = "https://hoangcongson.github.io/bongda.m3u";
+
+async function loadDefaultBongdaPlaylist(userInitiated = false){
+  const existing = IPTV_SOURCES.find(x => x.url && x.url.includes("bongda.m3u"));
+  if(userInitiated){
+    setIptvStatus("⏳ Đang tải danh sách bóng đá từ bongda.m3u...");
+  }
+  try{
+    const res = await fetch(BONGDA_DEFAULT_URL + "?_hcs=" + Date.now(), {cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const text = await res.text();
+    const parsed = parseIptvPayload(text, "⚽ Bóng đá");
+    if(!parsed.length) throw new Error("Danh sách bóng đá rỗng");
+
+    const sourceId = existing ? existing.id : ("iptv-bongda-default");
+    const source = {
+      id: sourceId,
+      name: "⚽ Trực tiếp bóng đá (HCS)",
+      url: BONGDA_DEFAULT_URL,
+      count: parsed.length,
+      updatedAt: new Date().toISOString(),
+      web: false,
+      isDefault: true
+    };
+    IPTV_SOURCES = IPTV_SOURCES.filter(x => !(x.url && x.url.includes("bongda.m3u")));
+    IPTV_SOURCES.unshift(source);
+    IPTV_IMPORTED = IPTV_IMPORTED.filter(c => c.sourceId !== sourceId);
+    IPTV_IMPORTED.push(...parsed.map(c => ({...c, sourceId: sourceId})));
+    saveIptvSources();
+    saveIptvImported();
+    rebuildIptvChannels();
+    renderGroups();
+    renderTabs();
+    renderChannels();
+    renderIptvSources();
+    if(userInitiated){
+      setIptvStatus(`✓ Đã nạp "${source.name}" — ${parsed.length} trận đấu mới nhất.`);
+    }
+  }catch(e){
+    console.error("Lỗi nạp bongda.m3u:", e);
+    if(userInitiated){
+      setIptvStatus("Không nạp được danh sách bóng đá: " + e.message, true);
+    }
+  }
+}
+
 function clearIptvSources(){
   if(!confirm("Xóa toàn bộ playlist IPTV đã thêm?")) return;
   IPTV_SOURCES=[]; IPTV_IMPORTED=[];
@@ -3093,6 +3153,15 @@ setLibraryButtons();
 
 setupQualitySelector();
 setupMobileLandscape();setupMobileTouchLock();renderGroups();renderTabs();renderChannels();renderCurrentDate();startStatusClock();
+
+// Tự động kiểm tra và cập nhật playlist bóng đá
+setTimeout(() => {
+  const existing = IPTV_SOURCES.find(x => x.url && x.url.includes("bongda.m3u"));
+  const isOld = !existing?.updatedAt || (Date.now() - new Date(existing.updatedAt).getTime() > 10 * 60 * 1000);
+  if(!existing || isOld){
+    loadDefaultBongdaPlaylist(false);
+  }
+}, 800);
 </script>
 <!-- SIRO TV app downloads -->
 <section class="app-download" aria-label="Tải ứng dụng SIRO TV">
