@@ -284,7 +284,9 @@
 .channels{padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:12px}.channel{min-width:0;border:1px solid #cfe4de;background:linear-gradient(#fff,#f3fbf8);border-radius:12px;padding:10px 8px;cursor:pointer;transition:.16s;box-shadow:0 2px 7px #245f5012;display:flex;flex-direction:column;align-items:stretch;justify-content:space-between}
 .channel:hover{transform:translateY(-2px);border-color:var(--teal);box-shadow:0 8px 18px #245f5020}.logo{height:52px;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:8px;overflow:hidden}.logo img{max-height:46px;max-width:88%;object-fit:contain}.fallback{font-size:20px;font-weight:900;color:var(--teal)}
 .cname{font-size:12px;text-align:center;font-weight:750;margin-top:8px;white-space:normal;word-break:break-word;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-height:32px}
-.c-time-badge{display:inline-block;font-size:10px;font-weight:900;color:#126052;background:#dff5ed;padding:2px 8px;border-radius:999px;margin-bottom:4px;border:1px solid #bcead9;letter-spacing:.2px;white-space:nowrap}
+.c-badge-row{display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:wrap;margin-bottom:4px}
+.c-time-badge{display:inline-block;font-size:10px;font-weight:900;color:#126052;background:#dff5ed;padding:2px 8px;border-radius:999px;border:1px solid #bcead9;letter-spacing:.2px;white-space:nowrap}
+.c-provider-badge{display:inline-block;font-size:9px;font-weight:900;color:#165b4c;background:#cbf0e4;padding:2px 7px;border-radius:999px;border:1px solid #9cd8c7;white-space:nowrap;letter-spacing:.2px}
 .c-match-title{display:block;font-size:12px;font-weight:800;color:#15332d;line-height:1.32}.side{padding:0}.side-title{background:var(--teal);color:#fff;padding:12px;font-weight:900}
 .search{margin:10px;width:calc(100% - 20px);padding:10px;border:1px solid var(--line);border-radius:9px;outline:none}.group-list{padding:0 10px 12px;max-height:580px;overflow:auto}
 .gitem{display:flex;align-items:center;gap:8px;padding:10px;border-radius:9px;margin-top:5px;cursor:pointer;font-weight:800;color:var(--deep)}.gitem:hover,.gitem.active{background:var(--mint)}.gicon{font-size:19px}
@@ -1974,7 +1976,34 @@ function uniqueIptvChannels(list){
     seen.add(key); return true;
   });
 }
-function parseM3U(text, fallbackGroup="📡 IPTV"){
+function detectBongdaProvider(name, logo, url){
+  const txt = ((name||"") + " " + (logo||"") + " " + (url||"")).toLowerCase();
+  if(txt.includes("xoilac") || txt.includes("zktsva") || txt.includes("wecile") || txt.includes("yefpwmc") || txt.includes("s8tv") || txt.includes("xôi xoài") || txt.includes("thập cẩm") || txt.includes("cltvap")){
+    return "🥗 Xôi Lạc / S8TV";
+  }
+  if(txt.includes("vebo") || txt.includes("losartang") || txt.includes("ebaclofen") || txt.includes("vsc-channel")){
+    return "⛵ Về Bờ (VeBo TV)";
+  }
+  if(txt.includes("lauthaitv") || txt.includes("lẩu thái")){
+    return "🍲 Lẩu Thái TV";
+  }
+  if(txt.includes("chuoichien") || txt.includes("chuối chiên") || txt.includes("chuối lá") || txt.includes("chuoilahd")){
+    return "🍌 Chuối Chiên TV";
+  }
+  if(txt.includes("keovip")){
+    return "🎯 Kèo VIP";
+  }
+  if(txt.includes("livetl") || txt.includes("domaincdn") || txt.includes("jorvak") || txt.includes("sportpulse") || txt.includes("edgemaxcdn") || txt.includes("quickscoreboardz")){
+    return "⚡ LiveSport / Bsports";
+  }
+  if(txt.includes("freem3u")){
+    return "📺 FreeM3U Sports";
+  }
+  return "🌐 Nguồn Thể Thao Khác";
+}
+
+function parseM3U(text, fallbackGroup="📡 IPTV", isBongda=false){
+  const isMatchList = isBongda || /⚽|(vs|v\/s)/i.test(text);
   const lines=String(text||"").replace(/^\uFEFF/,"").split(/\r?\n/);
   const out=[];
   let meta=null, pendingGroup="";
@@ -2003,7 +2032,13 @@ function parseM3U(text, fallbackGroup="📡 IPTV"){
     }
     if(line[0]==="#" ) continue;
     if(meta){
-      out.push({...meta,url:line});
+      let groupName = meta.group;
+      let provider = "";
+      if(isMatchList){
+        provider = detectBongdaProvider(meta.name, meta.logo, line);
+        groupName = provider;
+      }
+      out.push({...meta, group: groupName, provider: provider, matchDate: meta.group, url: line});
       meta=null; pendingGroup="";
     }else if(/^https?:\/\//i.test(line)){
       out.push({name:"Kênh IPTV",group:fallbackGroup,logo:"",url:line});
@@ -2028,10 +2063,22 @@ function getIptvGroups(){
   const out=[]; const seen=new Set();
   for(const s of getIptvSources()){
     const chans=IPTV_IMPORTED.filter(c=>c.sourceId===s.id);
+    const isBongdaSource = s.isDefault || (s.url && s.url.includes("bongda.m3u"));
+    if(isBongdaSource && chans.length > 0){
+      const allKey = s.id + "::__ALL__";
+      if(!seen.has(allKey)){
+        seen.add(allKey);
+        out.push({key: allKey, sourceId: s.id, source: s.name||"Bóng đá", group: "⚽ Tất cả trận đấu (" + chans.length + ")", isAll: true});
+      }
+    }
     const groups=[...new Set(chans.map(c=>c.group||"📡 IPTV"))];
     for(const g of groups){
       const key=s.id+"::"+g;
-      if(!seen.has(key)){seen.add(key);out.push({key,sourceId:s.id,source:s.name||"Playlist IPTV",group:g});}
+      if(!seen.has(key)){
+        seen.add(key);
+        const count = chans.filter(c=>c.group===g).length;
+        out.push({key, sourceId:s.id, source:s.name||"Playlist IPTV", group: g + ` (${count})`, rawGroup: g});
+      }
     }
   }
   return out;
@@ -2077,12 +2124,11 @@ function isLiveSportWebUrl(url){
 // Để trống sẽ thử đọc trực tiếp trước.
 const LIVESPORT_ADAPTER_URL = "";
 
-function parseIptvPayload(payload, fallbackGroup="⚽ LiveSport"){
+function parseIptvPayload(payload, fallbackGroup="⚽ LiveSport", isBongda=false){
   if(!payload) return [];
-  // JSON phổ biến: {m3u:"..."}, {playlist:"..."}, {channels:[...]}, hoặc mảng channel.
   if(typeof payload === "object"){
-    if(typeof payload.m3u === "string") return parseM3U(payload.m3u,fallbackGroup);
-    if(typeof payload.playlist === "string") return parseM3U(payload.playlist,fallbackGroup);
+    if(typeof payload.m3u === "string") return parseM3U(payload.m3u,fallbackGroup,isBongda);
+    if(typeof payload.playlist === "string") return parseM3U(payload.playlist,fallbackGroup,isBongda);
     const arr=Array.isArray(payload)?payload:(Array.isArray(payload.channels)?payload.channels:(Array.isArray(payload.data)?payload.data:[]));
     if(arr.length){
       return uniqueIptvChannels(arr.map((x,i)=>({
@@ -2097,7 +2143,7 @@ function parseIptvPayload(payload, fallbackGroup="⚽ LiveSport"){
     return [];
   }
   const text=String(payload||"").trim();
-  if(/#EXTINF:/i.test(text)) return parseM3U(text,fallbackGroup);
+  if(/#EXTINF:/i.test(text)) return parseM3U(text,fallbackGroup,isBongda);
   // Một số adapter trả về JSON dưới dạng text.
   try{return parseIptvPayload(JSON.parse(text),fallbackGroup);}catch(e){}
   return [];
@@ -2283,7 +2329,7 @@ async function loadDefaultBongdaPlaylist(userInitiated = false){
     const res = await fetch(BONGDA_DEFAULT_URL + "?_hcs=" + Date.now(), {cache:"no-store"});
     if(!res.ok) throw new Error("HTTP " + res.status);
     const text = await res.text();
-    const parsed = parseIptvPayload(text, "⚽ Bóng đá");
+    const parsed = parseIptvPayload(text, "⚽ Bóng đá", true);
     if(!parsed.length) throw new Error("Danh sách bóng đá rỗng");
 
     const sourceId = existing ? existing.id : ("iptv-bongda-default");
@@ -2672,7 +2718,7 @@ function renderTabs(){
     box.innerHTML=GROUPS.map(g=>`<button class="tab ${g===currentGroup?"active":""}" onclick='selectGroup(${JSON.stringify(g)})'>${groupLabel(g)}</button>`).join("");
     return;
   }
-  box.innerHTML=getIptvGroups().map(x=>`<button class="tab ${x.key===currentGroup?"active":""}" onclick='selectGroup(${JSON.stringify(x.key)})'>📡 ${esc(x.source)} · ${esc(x.group)}</button>`).join("");
+  box.innerHTML=getIptvGroups().map(x=>`<button class="tab ${x.key===currentGroup?"active":""}" onclick='selectGroup(${JSON.stringify(x.key)})'>${esc(x.group)}</button>`).join("");
 }
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
 function normalizeSearchText(s){
@@ -2696,7 +2742,15 @@ function renderChannels(){
   if(currentLibrary==="iptv"){
     const iptv=getIptvChannels();
     if(q) list=sortChannels(iptv.filter(c=>matchesChannelSearch(c,q)));
-    else { const obj=currentIptvGroupObj(); list=obj?sortChannels(iptv.filter(c=>c.sourceId===obj.sourceId && c.group===obj.group)):[]; }
+    else {
+      const obj=currentIptvGroupObj();
+      if(obj && obj.isAll){
+        list=iptv.filter(c=>c.sourceId===obj.sourceId);
+      } else {
+        const targetGroup = obj?.rawGroup || obj?.group;
+        list=obj?sortChannels(iptv.filter(c=>c.sourceId===obj.sourceId && c.group===targetGroup)):[];
+      }
+    }
   }else if(q){
     list=sortChannels(BUILTIN_CHANNELS.filter(c=>matchesChannelSearch(c,q)));
   }else if(currentGroup==="❤️ YÊU THÍCH"){
@@ -2717,12 +2771,14 @@ function renderChannels(){
     const matchRegex = /^([🟢🔴⏰\s]*\d{1,2}:\d{2}\s+\d{1,2}\/\d{1,2})\s*⚽?\s*(.*)$/;
     const matchFound = String(c.name||"").trim().match(matchRegex);
     let nameContent = "";
+    const provBadge = c.provider ? `<span class="c-provider-badge">${esc(c.provider.replace(/^[^\w\sÀ-ỹ]+/, '').trim())}</span>` : "";
+
     if(matchFound){
       const timeBadge = matchFound[1].trim();
       const titleText = matchFound[2].trim() || c.name;
-      nameContent = `<div class="cname cname-match"><span class="c-time-badge">${esc(timeBadge)}</span><span class="c-match-title">${esc(titleText)}</span></div>`;
+      nameContent = `<div class="cname cname-match"><div class="c-badge-row"><span class="c-time-badge">${esc(timeBadge)}</span>${provBadge}</div><span class="c-match-title">${esc(titleText)}</span></div>`;
     }else{
-      nameContent = `<div class="cname">${esc(c.name)}</div>`;
+      nameContent = `<div class="cname">${provBadge ? `<div class="c-badge-row">${provBadge}</div>` : ""}<span class="c-match-title">${esc(c.name)}</span></div>`;
     }
     return `
       <div class="channel" onclick="playChannel(${idx})" title="${esc(c.name)}">
